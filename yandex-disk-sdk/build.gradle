@@ -1,17 +1,17 @@
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 
 buildscript {
     repositories {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.7.3'
+        classpath 'com.android.tools.build:gradle:1.0.0'
     }
 }
 
 android {
     compileSdkVersion 19
-    buildToolsVersion '19.0.0'
+    buildToolsVersion '19.1'
 
     sourceSets {
         main {
@@ -23,25 +23,25 @@ android {
 
 }
 
-apply plugin: 'maven'
+//apply plugin: 'maven'
+//
+//group = 'ru.yandex.android'
+//version = '1.03'
 
-group = 'ru.yandex.android'
-version = '1.03'
-
-uploadArchives {
-    repositories {
-        if (project.properties.containsKey('teamcity')) {
-            mavenDeployer {
-                auth = { authentication(userName: teamcity['maven.username'], password: teamcity['maven.password']) }
-                repository         (url: 'http://maven.yandex.net/nexus/content/repositories/yandex_mobile_releases/', auth)
-                snapshotRepository (url: 'http://maven.yandex.net/nexus/content/repositories/yandex_mobile_snapshots/', auth)
-            }
-        } else {
-            mavenDeployer {
-                def userHome = System.properties['user.home']
-                repository(url: "file:///$userHome/.m2/repository/")
-            }
-        }
-    }
-}
+//uploadArchives {
+//    repositories {
+//        if (project.properties.containsKey('teamcity')) {
+//            mavenDeployer {
+//                auth = { authentication(userName: teamcity['maven.username'], password: teamcity['maven.password']) }
+//                repository         (url: 'http://maven.yandex.net/nexus/content/repositories/yandex_mobile_releases/', auth)
+//                snapshotRepository (url: 'http://maven.yandex.net/nexus/content/repositories/yandex_mobile_snapshots/', auth)
+//            }
+//        } else {
+//            mavenDeployer {
+//                def userHome = System.properties['user.home']
+//                repository(url: "file:///$userHome/.m2/repository/")
+//            }
+//        }
+//    }
+//}
 
