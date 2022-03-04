@@ -31,8 +31,9 @@ import com.yandex.disk.client.exceptions.WebdavFileNotFoundException;
 import com.yandex.disk.client.exceptions.WebdavForbiddenException;
 import com.yandex.disk.client.exceptions.WebdavInvalidUserException;
 import com.yandex.disk.client.exceptions.WebdavNotAuthorizedException;
-import com.yandex.disk.client.exceptions.WebdavUserNotInitialized;
 import com.yandex.disk.client.exceptions.WebdavSharingForbiddenException;
+import com.yandex.disk.client.exceptions.WebdavUserNotInitialized;
+
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -808,6 +809,87 @@ public class TransportClient {
                 Log.w(TAG, e);
             }
         }
+    }
+
+    public InputStream downloadPath(String path, long startPos)
+            throws IOException, WebdavUserNotInitialized, PreconditionFailedException, WebdavNotAuthorizedException, ServerWebdavException,
+            CancelledDownloadException, UnknownServerWebdavException, FileNotModifiedException, RemoteFileNotFoundException, DownloadNoSpaceAvailableException, RangeNotSatisfiableException, FileModifiedException {
+        String url = getUrl() + encodeURL(path);
+
+        HttpGet get = new HttpGet(url);
+        logMethod(get);
+        creds.addAuthHeader(get);
+
+        long length = startPos;
+        String ifTag = "If-None-Match";
+        if (length >= 0) {
+            ifTag = "If-Range";
+            StringBuilder contentRange = new StringBuilder();
+            contentRange.append("bytes=").append(length).append("-");
+            Log.d(TAG, "Range: "+contentRange);
+            get.addHeader("Range", contentRange.toString());
+        }
+
+        String etag = null;
+//        if (etag != null) {
+//            Log.d(TAG, ifTag+": "+etag);
+//            get.addHeader(ifTag, etag);
+//        }
+
+        boolean partialContent = false;
+        BasicHttpContext httpContext = new BasicHttpContext();
+        HttpResponse httpResponse = executeRequest(get, httpContext);
+        StatusLine statusLine = httpResponse.getStatusLine();
+        if (statusLine != null) {
+            int statusCode = statusLine.getStatusCode();
+            switch (statusCode) {
+                case 200:
+                    // OK
+                    break;
+                case 206:
+                    partialContent = true;
+                    break;
+                case 304:
+                    consumeContent(httpResponse);
+                    throw new FileNotModifiedException();
+                case 404:
+                    consumeContent(httpResponse);
+                    throw new RemoteFileNotFoundException("error while downloading file "+url);
+                case 416:
+                    consumeContent(httpResponse);
+                    throw new RangeNotSatisfiableException("error while downloading file "+url);
+                default:
+                    checkStatusCodes(httpResponse, "GET '"+url+"'");
+                    break;
+            }
+        }
+
+        HttpEntity response = httpResponse.getEntity();
+        long contentLength = response.getContentLength();
+        Log.d(TAG, "download: contentLength="+contentLength);
+
+        long loaded;
+        if (partialContent) {
+            ContentRangeResponse contentRangeResponse = parseContentRangeHeader(httpResponse.getLastHeader("Content-Range"));
+            Log.d(TAG, "download: contentRangeResponse="+contentRangeResponse);
+            if (contentRangeResponse != null) {
+                loaded = contentRangeResponse.getStart();
+                contentLength = contentRangeResponse.getSize();
+            } else {
+                loaded = length;
+            }
+        } else {
+            loaded = 0;
+            if (contentLength < 0) {
+                contentLength = 0;
+            }
+        }
+
+        /*downloadListener.setStartPosition(loaded);
+        downloadListener.setContentLength(contentLength);*/
+
+        return response.getContent();
+//        response.consumeContent(); //finished?
     }
 
     private static Pattern CONTENT_RANGE_HEADER_PATTERN = Pattern.compile("bytes\\D+(\\d+)-\\d+/(\\d+)");
