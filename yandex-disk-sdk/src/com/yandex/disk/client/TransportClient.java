@@ -9,11 +9,11 @@ package com.yandex.disk.client;
 import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
+
 import com.yandex.disk.client.exceptions.CancelledDownloadException;
 import com.yandex.disk.client.exceptions.CancelledPropfindException;
 import com.yandex.disk.client.exceptions.DownloadNoSpaceAvailableException;
 import com.yandex.disk.client.exceptions.DuplicateFolderException;
-import com.yandex.disk.client.exceptions.RemoteFileNotFoundException;
 import com.yandex.disk.client.exceptions.FileModifiedException;
 import com.yandex.disk.client.exceptions.FileNotModifiedException;
 import com.yandex.disk.client.exceptions.FileTooBigServerException;
@@ -21,6 +21,7 @@ import com.yandex.disk.client.exceptions.FilesLimitExceededServerException;
 import com.yandex.disk.client.exceptions.IntermediateFolderNotExistException;
 import com.yandex.disk.client.exceptions.PreconditionFailedException;
 import com.yandex.disk.client.exceptions.RangeNotSatisfiableException;
+import com.yandex.disk.client.exceptions.RemoteFileNotFoundException;
 import com.yandex.disk.client.exceptions.ServerWebdavException;
 import com.yandex.disk.client.exceptions.ServiceUnavailableWebdavException;
 import com.yandex.disk.client.exceptions.UnknownServerWebdavException;
@@ -55,6 +56,7 @@ import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -503,11 +505,11 @@ public class TransportClient {
         HttpHead head = new HttpHead(url);
         logMethod(head, ", file "+file);
         creds.addAuthHeader(head);
-        head.addHeader("Etag", md5);
+//        head.addHeader("Etag", md5);
         if (sha256 != null) {
             head.addHeader("Sha256", sha256);
         }
-        head.addHeader("Size", String.valueOf(file.length()));
+//        head.addHeader("Size", String.valueOf(file.length()));
         HttpResponse response = executeRequest(head);
         consumeContent(response);
         StatusLine statusLine = response.getStatusLine();
@@ -606,6 +608,62 @@ public class TransportClient {
                     throw new IntermediateFolderNotExistException("Parent folder not exists for '"+dir+"'");
                 default:
                     checkStatusCodes(response, "PUT '"+file+"' to "+url);
+            }
+        }
+    }
+
+    public void uploadFile2(File file, String dir, String destFileName, String md5, String sha256, final ProgressListener progressListener)
+            throws IntermediateFolderNotExistException, IOException, WebdavUserNotInitialized, PreconditionFailedException,
+            WebdavNotAuthorizedException, ServerWebdavException, UnknownServerWebdavException {
+
+        String destName = TextUtils.isEmpty(destFileName) ? file.getName() : destFileName;
+        String url = getUrl() + encodeURL(dir + "/" + destName);
+        Log.d(TAG, "uploadFile: put to " + getUrl() + dir + "/" + destName);
+
+//        long uploadedSize;
+//        try {
+//            uploadedSize = headFile(file, dir, destName, md5, sha256);
+//        } catch (NumberFormatException ex) {
+//            Log.w(TAG, "Uploading " + file.getAbsolutePath() + " to " + dir + ": HEAD failed", ex);
+//            uploadedSize = 0;
+//        }
+
+        HttpPut put = new HttpPut(url);
+        creds.addAuthHeader(put);
+//        put.addHeader("Etag", md5);
+
+        if (sha256 != null) {
+            Log.d(TAG, "Sha256: " + sha256);
+            put.addHeader("Sha256", sha256);
+        }
+        long uploadedSize = 0;
+        if (uploadedSize > 0) {
+            StringBuilder contentRange = new StringBuilder();
+            contentRange.append("bytes ").append(uploadedSize).append("-").append(file.length() - 1).append("/").append(file.length());
+            Log.d(TAG, "Content-Range: " + contentRange);
+            put.addHeader("Content-Range", contentRange.toString());
+        }
+
+        HttpEntity entity = new FileProgressHttpEntity(file, uploadedSize, progressListener);
+//        entity.ch
+        byte[] bodys = { 48, 49 };
+        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bodys);
+        put.setEntity(byteArrayEntity);
+
+        logMethod(put, ", file to upload " + file);
+        HttpResponse response = executeRequest(put);
+        StatusLine statusLine = response.getStatusLine();
+        if (statusLine != null) {
+            consumeContent(response);
+            switch (statusLine.getStatusCode()) {
+                case 201:
+                    Log.d(TAG, "File uploaded successfully: " + file);
+                    return;
+                case 409:
+                    Log.d(TAG, "Parent not exist for dir " + dir);
+                    throw new IntermediateFolderNotExistException("Parent folder not exists for '" + dir + "'");
+                default:
+                    checkStatusCodes(response, "PUT '" + file + "' to " + url);
             }
         }
     }
