@@ -873,7 +873,7 @@ public class TransportClient {
         }
     }
 
-    public InputStream downloadPath(String path, long startPos)
+    public InputStream downloadPath(String path, long startPos, long endPos)
             throws IOException, WebdavUserNotInitialized, PreconditionFailedException, WebdavNotAuthorizedException, ServerWebdavException,
             CancelledDownloadException, UnknownServerWebdavException, FileNotModifiedException, RemoteFileNotFoundException, DownloadNoSpaceAvailableException, RangeNotSatisfiableException, FileModifiedException {
         String url = getUrl() + encodeURL(path);
@@ -887,7 +887,7 @@ public class TransportClient {
         if (length >= 0) {
             ifTag = "If-Range";
             StringBuilder contentRange = new StringBuilder();
-            contentRange.append("bytes=").append(length).append("-10");
+            contentRange.append("bytes=").append(length).append("-").append(endPos);
             Log.d(TAG, "Range: "+contentRange);
             get.addHeader("Range", contentRange.toString());
         }
@@ -935,7 +935,7 @@ public class TransportClient {
             ContentRangeResponse contentRangeResponse = parseContentRangeHeader(httpResponse.getLastHeader("Content-Range"));
             Log.d(TAG, "download: contentRangeResponse="+contentRangeResponse);
             if (contentRangeResponse != null) {
-                loaded = contentRangeResponse.getStart();
+                loaded = contentRangeResponse.getStart(); //todoe
                 contentLength = contentRangeResponse.getSize();
             } else {
                 loaded = length;
