@@ -612,13 +612,11 @@ public class TransportClient {
         }
     }
 
-    public void uploadFile2(File file, String dir, String destFileName, String md5, String sha256, final ProgressListener progressListener)
+    public void uploadFile2(byte[] bytes, String path, long start, long end)
             throws IntermediateFolderNotExistException, IOException, WebdavUserNotInitialized, PreconditionFailedException,
             WebdavNotAuthorizedException, ServerWebdavException, UnknownServerWebdavException {
 
-        String destName = TextUtils.isEmpty(destFileName) ? file.getName() : destFileName;
-        String url = getUrl() + encodeURL(dir + "/" + destName);
-        Log.d(TAG, "uploadFile: put to " + getUrl() + dir + "/" + destName);
+        String url = getUrl() + encodeURL(path);
 
 //        long uploadedSize;
 //        try {
@@ -632,39 +630,45 @@ public class TransportClient {
         creds.addAuthHeader(put);
 //        put.addHeader("Etag", md5);
 
-        if (sha256 != null) {
-            Log.d(TAG, "Sha256: " + sha256);
-            put.addHeader("Sha256", sha256);
-        }
-        long uploadedSize = 0;
-        if (uploadedSize > 0) {
-            StringBuilder contentRange = new StringBuilder();
-            contentRange.append("bytes ").append(uploadedSize).append("-").append(file.length() - 1).append("/").append(file.length());
-            Log.d(TAG, "Content-Range: " + contentRange);
-            put.addHeader("Content-Range", contentRange.toString());
-        }
+//        if (sha256 != null) {
+//            Log.d(TAG, "Sha256: " + sha256);
+//            put.addHeader("Sha256", sha256);
+//        }
+//        if (start > 0) {
+//            StringBuilder contentRange = new StringBuilder();
+//            contentRange.append("bytes ").append(start).append("-").append(end - 1).append("/").append("1");
+//            Log.d(TAG, "Content-Range: " + contentRange);
+//            put.addHeader("Content-Range", contentRange.toString());
+//            put.addHeader("Transfer-Encoding", "chunked");
+//        }
 
-        HttpEntity entity = new FileProgressHttpEntity(file, uploadedSize, progressListener);
-//        entity.ch
-        byte[] bodys = { 48, 49 };
-        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bodys);
+        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bytes);
+        byteArrayEntity.setChunked(true);
         put.setEntity(byteArrayEntity);
 
-        logMethod(put, ", file to upload " + file);
-        HttpResponse response = executeRequest(put);
-        StatusLine statusLine = response.getStatusLine();
-        if (statusLine != null) {
-            consumeContent(response);
-            switch (statusLine.getStatusCode()) {
-                case 201:
-                    Log.d(TAG, "File uploaded successfully: " + file);
-                    return;
-                case 409:
-                    Log.d(TAG, "Parent not exist for dir " + dir);
-                    throw new IntermediateFolderNotExistException("Parent folder not exists for '" + dir + "'");
-                default:
-                    checkStatusCodes(response, "PUT '" + file + "' to " + url);
+        try {
+
+
+            HttpResponse response = executeRequest(put);
+            StatusLine statusLine = response.getStatusLine();
+            if (statusLine != null) {
+                consumeContent(response);
+                switch (statusLine.getStatusCode()) {
+                    case 201:
+                        return;
+                    case 409:
+                        throw new IntermediateFolderNotExistException("Parent folder not exists for '" + path + "'");
+                    default:
+                        checkStatusCodes(response, "PUT '" + path + "' to " + url);
+                }
             }
+        } catch (Throwable e) {
+            e.printStackTrace();
+            e.printStackTrace();
+            e.printStackTrace();
+            e.printStackTrace();
+            e.printStackTrace();
+
         }
     }
 
@@ -883,7 +887,7 @@ public class TransportClient {
         if (length >= 0) {
             ifTag = "If-Range";
             StringBuilder contentRange = new StringBuilder();
-            contentRange.append("bytes=").append(length).append("-");
+            contentRange.append("bytes=").append(length).append("-10");
             Log.d(TAG, "Range: "+contentRange);
             get.addHeader("Range", contentRange.toString());
         }
