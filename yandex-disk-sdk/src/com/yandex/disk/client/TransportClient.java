@@ -611,17 +611,12 @@ public class TransportClient {
         }
     }
 
-    public void uploadFile(String path) throws IOException, IntermediateFolderNotExistException, UnknownServerWebdavException, WebdavNotAuthorizedException, PreconditionFailedException, ServerWebdavException, WebdavUserNotInitialized {
+    public void newFile(String path) throws IOException, IntermediateFolderNotExistException, UnknownServerWebdavException, WebdavNotAuthorizedException, PreconditionFailedException, ServerWebdavException, WebdavUserNotInitialized {
 
         String url = getUrl() + encodeURL(path);
 
         HttpPut put = new HttpPut(url);
         creds.addAuthHeader(put);
-
-
-//        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bytes);
-//        byteArrayEntity.setChunked(true);
-//        put.setEntity(byteArrayEntity);
 
         HttpResponse response = executeRequest(put);
         StatusLine statusLine = response.getStatusLine();
