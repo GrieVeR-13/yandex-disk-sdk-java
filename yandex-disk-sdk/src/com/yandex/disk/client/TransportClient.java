@@ -56,7 +56,6 @@ import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -612,63 +611,30 @@ public class TransportClient {
         }
     }
 
-    public void uploadFile2(byte[] bytes, String path, long start, long end)
-            throws IntermediateFolderNotExistException, IOException, WebdavUserNotInitialized, PreconditionFailedException,
-            WebdavNotAuthorizedException, ServerWebdavException, UnknownServerWebdavException {
+    public void uploadFile(String path) throws IOException, IntermediateFolderNotExistException, UnknownServerWebdavException, WebdavNotAuthorizedException, PreconditionFailedException, ServerWebdavException, WebdavUserNotInitialized {
 
         String url = getUrl() + encodeURL(path);
 
-//        long uploadedSize;
-//        try {
-//            uploadedSize = headFile(file, dir, destName, md5, sha256);
-//        } catch (NumberFormatException ex) {
-//            Log.w(TAG, "Uploading " + file.getAbsolutePath() + " to " + dir + ": HEAD failed", ex);
-//            uploadedSize = 0;
-//        }
-
         HttpPut put = new HttpPut(url);
         creds.addAuthHeader(put);
-//        put.addHeader("Etag", md5);
-
-//        if (sha256 != null) {
-//            Log.d(TAG, "Sha256: " + sha256);
-//            put.addHeader("Sha256", sha256);
-//        }
-//        if (start > 0) {
-//            StringBuilder contentRange = new StringBuilder();
-//            contentRange.append("bytes ").append(start).append("-").append(end - 1).append("/").append("1");
-//            Log.d(TAG, "Content-Range: " + contentRange);
-//            put.addHeader("Content-Range", contentRange.toString());
-//            put.addHeader("Transfer-Encoding", "chunked");
-//        }
-
-        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bytes);
-        byteArrayEntity.setChunked(true);
-        put.setEntity(byteArrayEntity);
-
-        try {
 
 
-            HttpResponse response = executeRequest(put);
-            StatusLine statusLine = response.getStatusLine();
-            if (statusLine != null) {
-                consumeContent(response);
-                switch (statusLine.getStatusCode()) {
-                    case 201:
-                        return;
-                    case 409:
-                        throw new IntermediateFolderNotExistException("Parent folder not exists for '" + path + "'");
-                    default:
-                        checkStatusCodes(response, "PUT '" + path + "' to " + url);
-                }
+//        ByteArrayEntity byteArrayEntity = new ByteArrayEntity(bytes);
+//        byteArrayEntity.setChunked(true);
+//        put.setEntity(byteArrayEntity);
+
+        HttpResponse response = executeRequest(put);
+        StatusLine statusLine = response.getStatusLine();
+        if (statusLine != null) {
+            consumeContent(response);
+            switch (statusLine.getStatusCode()) {
+                case 201:
+                    return;
+                case 409:
+                    throw new IntermediateFolderNotExistException("Parent folder not exists for '" + path + "'");
+                default:
+                    checkStatusCodes(response, "PUT '" + path + "' to " + url);
             }
-        } catch (Throwable e) {
-            e.printStackTrace();
-            e.printStackTrace();
-            e.printStackTrace();
-            e.printStackTrace();
-            e.printStackTrace();
-
         }
     }
 
