@@ -394,14 +394,14 @@ public class TransportClient {
             throws IOException, PreconditionFailedException, UnknownServerWebdavException, WebdavFileNotFoundException,
             CancelledPropfindException, WebdavUserNotInitialized, ServerWebdavException, WebdavNotAuthorizedException,
             WebdavForbiddenException, WebdavInvalidUserException {
-        getList(path, MAX_ITEMS_PER_PAGE, null, null, handler);
+        getList(path, 0, MAX_ITEMS_PER_PAGE, null, null, handler);
     }
 
     public void getList(String path, int itemsPerPage, ListParsingHandler handler)
             throws IOException, PreconditionFailedException, UnknownServerWebdavException, WebdavFileNotFoundException,
             CancelledPropfindException, WebdavUserNotInitialized, ServerWebdavException, WebdavNotAuthorizedException,
             WebdavForbiddenException, WebdavInvalidUserException {
-        getList(path, itemsPerPage, null, null, handler);
+        getList(path, 0, itemsPerPage, null, null, handler);
     }
 
     /**
@@ -414,14 +414,13 @@ public class TransportClient {
      * @throws WebdavException            Server exceptions
      * @throws IOException                I/O exceptions
      */
-    public void getList(String path, int itemsPerPage, String sortBy, String orderBy, ListParsingHandler handler)
+    public void getList(String path, int offset, int itemsPerPage,  String sortBy, String orderBy, ListParsingHandler handler)
             throws IOException, CancelledPropfindException, WebdavNotAuthorizedException, WebdavInvalidUserException,
             WebdavForbiddenException, WebdavFileNotFoundException, WebdavUserNotInitialized, UnknownServerWebdavException,
             PreconditionFailedException, ServerWebdavException {
         Log.d(TAG, "getList for "+path);
 
         boolean itemsFinished = false;
-        int offset = 0;
         while (!itemsFinished) {
 
             if (handler.hasCancelled()) {
@@ -434,6 +433,9 @@ public class TransportClient {
                 if (sortBy != null && orderBy != null) {
                     url += "&sort="+sortBy+"&order="+orderBy;
                 }
+//                if (orderBy != null) {
+//                    url += "&order="+orderBy;
+//                }
             }
 
             PropFind propFind = new PropFind(url);
@@ -1044,6 +1046,7 @@ public class TransportClient {
         if (statusLine != null) {
             switch (statusLine.getStatusCode()) {
                 case 200:
+                case 204:
                     Log.d(TAG, "Delete successfully completed");
                     return;
                 case 404:
