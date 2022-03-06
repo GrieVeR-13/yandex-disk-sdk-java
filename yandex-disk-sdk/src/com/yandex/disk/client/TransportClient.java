@@ -1145,6 +1145,36 @@ public class TransportClient {
         }
     }
 
+    public void copy(String src, String dest)
+            throws WebdavException, IOException {
+        Copy copy = new Copy(getUrl()+encodeURL(src));
+        copy.setHeader("Destination", encodeURL(dest));
+        copy.setHeader("Overwrite", "F");
+        logMethod(copy, "to "+encodeURL(dest));
+        creds.addAuthHeader(copy);
+        HttpResponse response = executeRequest(copy);
+        consumeContent(response);
+        StatusLine statusLine = response.getStatusLine();
+        if (statusLine != null) {
+            int statusCode = statusLine.getStatusCode();
+            switch (statusCode) {
+                case 201:
+                    Log.d(TAG, "Copying successfully completed");
+                    return;
+                case 202:
+                case 207:
+                    Log.d(TAG, "HTTP code "+statusCode+": "+statusLine);
+                    return;
+                case 404:
+                    throw new WebdavFileNotFoundException("'"+src+"' not found");
+                case 409:
+                    throw new DuplicateFolderException("File or folder "+dest+" already exist");
+                default:
+                    checkStatusCodes(response, "COPY '"+src+"' to '"+dest+"'");
+            }
+        }
+    }
+
     public String publish(String path)
             throws IOException, WebdavException {
 //        String path = item.getFullName();
@@ -1226,6 +1256,17 @@ public class TransportClient {
         @Override
         public String getMethod() {
             return "MOVE";
+        }
+    }
+
+    private static class Copy extends HttpPut {
+        public Copy(String url) {
+            super(url);
+        }
+
+        @Override
+        public String getMethod() {
+            return "COPY";
         }
     }
 }
