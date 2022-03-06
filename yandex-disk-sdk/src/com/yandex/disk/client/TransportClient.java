@@ -387,6 +387,16 @@ public class TransportClient {
                     "</d:prop>" +
                     "</d:propfind>";
 
+    private static final String SET_LAST_CREATION_PROPPATH_REQUEST =
+            "<?xml version='1.0' encoding='utf-8' ?>" +
+                    "<d:propertyupdate xmlns:d='DAV:'>" +
+                    "<d:set>" +
+                    "<d:prop>" +
+                    "<d:creationdate>1970-01-01T00:00:00Z</d:creationdate>" +
+                    "</d:prop>" +
+                    "</d:set>" +
+                    "</d:propertyupdate>";
+
     private static final int MAX_ITEMS_PER_PAGE = Integer.MAX_VALUE;
 
     /**
@@ -442,9 +452,6 @@ public class TransportClient {
                 if (sortBy != null && orderBy != null) {
                     url += "&sort="+sortBy+"&order="+orderBy;
                 }
-//                if (orderBy != null) {
-//                    url += "&order="+orderBy;
-//                }
             }
 
             PropFind propFind = new PropFind(url);
@@ -543,6 +550,43 @@ public class TransportClient {
         } finally {
             consumeContent(response);
         }
+    }
+
+    //only creationdate supported
+    public void setCreationDate(String path) throws IOException, WebdavNotAuthorizedException, WebdavInvalidUserException, WebdavForbiddenException, WebdavFileNotFoundException, UnknownServerWebdavException, PreconditionFailedException, ServerWebdavException, WebdavUserNotInitialized {
+
+        String url = getUrl() + encodeURL(path);
+
+        PropPatch propPatch = new PropPatch(url);
+        logMethod(propPatch);
+        creds.addAuthHeader(propPatch);
+        propPatch.setEntity(new StringEntity(SET_LAST_CREATION_PROPPATH_REQUEST));
+
+        HttpResponse response = executeRequest(propPatch, null);
+        StatusLine statusLine = response.getStatusLine();
+        if (statusLine != null) {
+            int code = statusLine.getStatusCode();
+            switch (code) {
+                case 207:
+                    break;
+                case 401:
+                    consumeContent(response);
+                    throw new WebdavNotAuthorizedException(statusLine.getReasonPhrase() != null ? statusLine.getReasonPhrase() : "");
+                case 402:
+                    consumeContent(response);
+                    throw new WebdavInvalidUserException();
+                case 403:
+                    consumeContent(response);
+                    throw new WebdavForbiddenException();
+                case 404:
+                    consumeContent(response);
+                    throw new WebdavFileNotFoundException("Directory not found: " + path);
+                default:
+                    consumeContent(response);
+                    checkStatusCodes(response, "PROPPATCH " + path);
+            }
+        }
+        consumeContent(response);
     }
 
     /**
@@ -1234,6 +1278,20 @@ public class TransportClient {
         @Override
         public String getMethod() {
             return "PROPFIND";
+        }
+    }
+
+    public static class PropPatch extends HttpPost {
+        public PropPatch() {
+        }
+
+        public PropPatch(String url) {
+            super(url);
+        }
+
+        @Override
+        public String getMethod() {
+            return "PROPPATCH";
         }
     }
 
