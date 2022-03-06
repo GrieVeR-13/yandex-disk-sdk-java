@@ -378,6 +378,15 @@ public class TransportClient {
                     "</d:prop>" +
                     "</d:propfind>";
 
+    private static final String SPACE_INFO_PROPFIND_REQUEST =
+            "<?xml version='1.0' encoding='utf-8' ?>" +
+                    "<d:propfind xmlns:d='DAV:'>" +
+                    "<d:prop>" +
+                    "<d:quota-available-bytes/>" +
+                    "<d:quota-used-bytes/>" +
+                    "</d:prop>" +
+                    "</d:propfind>";
+
     private static final int MAX_ITEMS_PER_PAGE = Integer.MAX_VALUE;
 
     /**
@@ -484,6 +493,55 @@ public class TransportClient {
                 itemsFinished = true;
             }
             offset += itemsPerPage;
+        }
+    }
+
+    public SpaceInfo getSpaceInfo(String path)
+            throws IOException, CancelledPropfindException, WebdavNotAuthorizedException, WebdavInvalidUserException,
+            WebdavForbiddenException, WebdavFileNotFoundException, WebdavUserNotInitialized, UnknownServerWebdavException,
+            PreconditionFailedException, ServerWebdavException, XmlPullParserException {
+
+        String url = getUrl() + encodeURL(path);
+
+        PropFind propFind = new PropFind(url);
+        logMethod(propFind);
+        creds.addAuthHeader(propFind);
+        propFind.setEntity(new StringEntity(SPACE_INFO_PROPFIND_REQUEST));
+
+        HttpResponse response = executeRequest(propFind, null);
+        StatusLine statusLine = response.getStatusLine();
+        if (statusLine != null) {
+            int code = statusLine.getStatusCode();
+            switch (code) {
+                case 207:
+                    break;
+                case 401:
+                    consumeContent(response);
+                    throw new WebdavNotAuthorizedException(statusLine.getReasonPhrase() != null ? statusLine.getReasonPhrase() : "");
+                case 402:
+                    consumeContent(response);
+                    throw new WebdavInvalidUserException();
+                case 403:
+                    consumeContent(response);
+                    throw new WebdavForbiddenException();
+                case 404:
+                    consumeContent(response);
+                    throw new WebdavFileNotFoundException("Directory not found: " + path);
+                default:
+                    consumeContent(response);
+                    checkStatusCodes(response, "PROPFIND " + path);
+            }
+        }
+        try {
+            HttpEntity entity = response.getEntity();
+            SpaceInfoParser parser = new SpaceInfoParser(entity);
+            parser.parse();
+            return parser.spaceInfo;
+        }
+        catch (XmlPullParserException ex) {
+            throw new UnknownServerWebdavException(ex);
+        } finally {
+            consumeContent(response);
         }
     }
 
