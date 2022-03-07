@@ -948,20 +948,12 @@ public class TransportClient {
         creds.addAuthHeader(get);
 
         long length = startPos;
-        String ifTag = "If-None-Match";
         if (length >= 0) {
-            ifTag = "If-Range";
             StringBuilder contentRange = new StringBuilder();
             contentRange.append("bytes=").append(length).append("-").append(endPos);
             Log.d(TAG, "Range: "+contentRange);
             get.addHeader("Range", contentRange.toString());
         }
-
-        String etag = null;
-//        if (etag != null) {
-//            Log.d(TAG, ifTag+": "+etag);
-//            get.addHeader(ifTag, etag);
-//        }
 
         boolean partialContent = false;
         BasicHttpContext httpContext = new BasicHttpContext();
@@ -992,29 +984,6 @@ public class TransportClient {
         }
 
         HttpEntity response = httpResponse.getEntity();
-        long contentLength = response.getContentLength();
-        Log.d(TAG, "download: contentLength="+contentLength);
-
-        long loaded;
-        if (partialContent) {
-            ContentRangeResponse contentRangeResponse = parseContentRangeHeader(httpResponse.getLastHeader("Content-Range"));
-            Log.d(TAG, "download: contentRangeResponse="+contentRangeResponse);
-            if (contentRangeResponse != null) {
-                loaded = contentRangeResponse.getStart(); //todoe
-                contentLength = contentRangeResponse.getSize();
-            } else {
-                loaded = length;
-            }
-        } else {
-            loaded = 0;
-            if (contentLength < 0) {
-                contentLength = 0;
-            }
-        }
-
-        /*downloadListener.setStartPosition(loaded);
-        downloadListener.setContentLength(contentLength);*/
-
         return response.getContent();
 //        response.consumeContent(); //finished?
     }
